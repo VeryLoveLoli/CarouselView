@@ -23,9 +23,16 @@ open class CarouselItemView: UIControl {
         
         didSet {
             
-            update()
+            if (oldValue?.id != source?.id || source?.id == nil) {
+                
+                update()
+            }
         }
     }
+    /// 索引
+    open var index: Int?
+    /// 中间索引
+    open var midIndex: Int?
     
     // MARK: - Event
     

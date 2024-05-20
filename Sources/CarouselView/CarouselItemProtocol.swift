@@ -15,6 +15,8 @@ public protocol CarouselItemProtocol {
     
     // MARK: - Parameter
     
+    /// ID
+    var id: String? { get set}
     /// 图片
     var image: UIImage? { get set }
     /// 图片名称

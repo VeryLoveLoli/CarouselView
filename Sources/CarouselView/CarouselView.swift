@@ -13,6 +13,15 @@ import UIKit
  */
 open class CarouselView: UIScrollView, UIScrollViewDelegate {
     
+    open override var frame: CGRect {
+        
+        didSet {
+            
+            let midIndex = CGFloat(items.count/2 + items.count%2) - 1
+            setContentOffset(CGPoint.init(x: isVertical ? 0 : midIndex*frame.width, y: isVertical ? midIndex*frame.height : 0), animated: true)
+        }
+    }
+    
     /// 定时器
     open weak var timer: Timer? = nil
     /// 时间间隔
@@ -23,6 +32,17 @@ open class CarouselView: UIScrollView, UIScrollViewDelegate {
     
     /// 视图列表
     open var items: [CarouselItemView] = []
+    /// 约束
+    var lcs: [NSLayoutConstraint] = []
+    
+    /// 是否竖向滑动（`true`：竖向；`false`：横向）
+    var isVertical = false {
+        
+        didSet {
+            
+            itemsLayoutConstraint()
+        }
+    }
     
     /// 索引
     open var index: Int = 0 {
@@ -103,36 +123,70 @@ open class CarouselView: UIScrollView, UIScrollViewDelegate {
      */
     open func itemsLayoutConstraint() {
         
-        var lcs: [NSLayoutConstraint] = []
+        NSLayoutConstraint.deactivate(lcs)
+        lcs = []
         
         var last: CarouselItemView?
         
-        for item in items {
+        if isVertical {
             
-            addSubview(item)
-            
-            item.translatesAutoresizingMaskIntoConstraints = false
-            
-            lcs.append(NSLayoutConstraint(item: item, attribute: .top, relatedBy: .equal, toItem: self, attribute: .top, multiplier: 1, constant: 0))
-            lcs.append(NSLayoutConstraint(item: item, attribute: .bottom, relatedBy: .equal, toItem: self, attribute: .bottom, multiplier: 1, constant: 0))
-            lcs.append(NSLayoutConstraint(item: item, attribute: .width, relatedBy: .equal, toItem: self, attribute: .width, multiplier: 1, constant: 0))
-            lcs.append(NSLayoutConstraint(item: item, attribute: .height, relatedBy: .equal, toItem: self, attribute: .height, multiplier: 1, constant: 0))
+            for item in items {
+                
+                addSubview(item)
+                
+                item.translatesAutoresizingMaskIntoConstraints = false
+                
+                lcs.append(NSLayoutConstraint(item: item, attribute: .left, relatedBy: .equal, toItem: self, attribute: .left, multiplier: 1, constant: 0))
+                lcs.append(NSLayoutConstraint(item: item, attribute: .right, relatedBy: .equal, toItem: self, attribute: .right, multiplier: 1, constant: 0))
+                lcs.append(NSLayoutConstraint(item: item, attribute: .width, relatedBy: .equal, toItem: self, attribute: .width, multiplier: 1, constant: 0))
+                lcs.append(NSLayoutConstraint(item: item, attribute: .height, relatedBy: .equal, toItem: self, attribute: .height, multiplier: 1, constant: 0))
+                
+                if let last = last {
+                    
+                    lcs.append(NSLayoutConstraint(item: item, attribute: .top, relatedBy: .equal, toItem: last, attribute: .bottom, multiplier: 1, constant: 0))
+                }
+                else {
+                    
+                    lcs.append(NSLayoutConstraint(item: item, attribute: .top, relatedBy: .equal, toItem: self, attribute: .top, multiplier: 1, constant: 0))
+                }
+                
+                last = item
+            }
             
             if let last = last {
                 
-                lcs.append(NSLayoutConstraint(item: item, attribute: .left, relatedBy: .equal, toItem: last, attribute: .right, multiplier: 1, constant: 0))
+                lcs.append(NSLayoutConstraint(item: last, attribute: .bottom, relatedBy: .equal, toItem: self, attribute: .bottom, multiplier: 1, constant: 0))
             }
-            else {
-                
-                lcs.append(NSLayoutConstraint(item: item, attribute: .left, relatedBy: .equal, toItem: self, attribute: .left, multiplier: 1, constant: 0))
-            }
-            
-            last = item
         }
-        
-        if let last = last {
+        else {
             
-            lcs.append(NSLayoutConstraint(item: last, attribute: .right, relatedBy: .equal, toItem: self, attribute: .right, multiplier: 1, constant: 0))
+            for item in items {
+                
+                addSubview(item)
+                
+                item.translatesAutoresizingMaskIntoConstraints = false
+                
+                lcs.append(NSLayoutConstraint(item: item, attribute: .top, relatedBy: .equal, toItem: self, attribute: .top, multiplier: 1, constant: 0))
+                lcs.append(NSLayoutConstraint(item: item, attribute: .bottom, relatedBy: .equal, toItem: self, attribute: .bottom, multiplier: 1, constant: 0))
+                lcs.append(NSLayoutConstraint(item: item, attribute: .width, relatedBy: .equal, toItem: self, attribute: .width, multiplier: 1, constant: 0))
+                lcs.append(NSLayoutConstraint(item: item, attribute: .height, relatedBy: .equal, toItem: self, attribute: .height, multiplier: 1, constant: 0))
+                
+                if let last = last {
+                    
+                    lcs.append(NSLayoutConstraint(item: item, attribute: .left, relatedBy: .equal, toItem: last, attribute: .right, multiplier: 1, constant: 0))
+                }
+                else {
+                    
+                    lcs.append(NSLayoutConstraint(item: item, attribute: .left, relatedBy: .equal, toItem: self, attribute: .left, multiplier: 1, constant: 0))
+                }
+                
+                last = item
+            }
+            
+            if let last = last {
+                
+                lcs.append(NSLayoutConstraint(item: last, attribute: .right, relatedBy: .equal, toItem: self, attribute: .right, multiplier: 1, constant: 0))
+            }
         }
         
         NSLayoutConstraint.activate(lcs)
@@ -192,16 +246,67 @@ open class CarouselView: UIScrollView, UIScrollViewDelegate {
             
             for i in 0..<items.count {
                 
+                if items[i].source?.id == source[(start_index + Int(midIndex))%source.count].id && items[i].source?.id != nil {
+                    
+                    if i < Int(midIndex) {
+                        
+                        for _ in 0..<(Int(midIndex) - i) {
+                            
+                            let item = items.removeLast()
+                            items.insert(item, at: 0)
+                        }
+                        
+                        itemsLayoutConstraint()
+                    }
+                    else if i > Int(midIndex) {
+                        
+                        for _ in 0..<(i - Int(midIndex)) {
+                            
+                            let item = items.removeFirst()
+                            items.append(item)
+                        }
+                        
+                        itemsLayoutConstraint()
+                    }
+                    
+                    break
+                }
+            }
+            
+            items[Int(midIndex)].source = source[(start_index + Int(midIndex))%source.count]
+            items[Int(midIndex)].index = Int(midIndex)
+            items[Int(midIndex)].midIndex = Int(midIndex)
+            
+            if isVertical {
+                
+                if contentSize.height < CGFloat(items.count)*frame.size.height {
+                    
+                    contentSize.height = CGFloat(items.count)*frame.size.height
+                }
+                
+                contentOffset = CGPoint.init(x: 0, y: midIndex*frame.size.height)
+            }
+            else {
+                
+                if contentSize.width < CGFloat(items.count)*frame.size.width {
+                    
+                    contentSize.width = CGFloat(items.count)*frame.size.width
+                }
+                
+                contentOffset = CGPoint.init(x: midIndex*frame.size.width, y: 0)
+            }
+            
+            for i in 0..<items.count {
+                
+                if i == Int(midIndex) {
+                    continue
+                }
+                
                 items[i].source = source[(start_index+i)%source.count]
+                items[i].index = start_index+i
+                items[i].midIndex = Int(midIndex)
             }
         }
-        
-        if contentSize.width < CGFloat(items.count)*frame.size.width {
-            
-            contentSize.width = CGFloat(items.count)*frame.size.width
-        }
-        
-        contentOffset = CGPoint.init(x: midIndex*frame.size.width, y: 0)
         
         timer?.fireDate = Date.init(timeIntervalSince1970: Date.init().timeIntervalSince1970 + timeInterval)
         
@@ -214,7 +319,7 @@ open class CarouselView: UIScrollView, UIScrollViewDelegate {
     open func updateIndex() {
         
         let midIndex = items.count/2 + items.count%2 - 1
-        var offsetIndex = Int(contentOffset.x/frame.size.width)
+        var offsetIndex = isVertical ? Int(contentOffset.y/frame.size.height) : Int(contentOffset.x/frame.size.width)
         
         offsetIndex -= midIndex
         
